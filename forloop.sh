@@ -14,14 +14,15 @@ do
     do
         for rx in $rxs
         do
-            vis="$datadir/${target}_track1.${rx}.${sideband}.cal.miriad"
-
+        #    vis="$datadir/${target}_track1.${rx}.${sideband}.cal.miriad"
+	    vis="${target}_track1.${rx}.${sideband}.cal.miriad"
             echo "Checking file: '$vis'"  # Debugging line
             if [ -e $vis ]; then
-               uvaver vis=${vis} \
-               line=channel,1024,1,4,4 out=${target}_track1.${rx}.${sideband}.cal.miriad.c
+#                uvaver vis=${vis} \
+ #                   line=channel,1024,1,4,4, out=${output_dir}/${target}_track1.${rx}.${sideband}.cal.miriad.c
+ 		echo "nice"
             else
-               echo "File $vis does not exist. Skipping..."
+                echo "File $vis does not exist. Skipping..."
             fi
         done
     done
