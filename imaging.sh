@@ -1,7 +1,7 @@
 #!/bin/bash
 flagval="f"
 
-targets='AS_206  DoAr_16  DoAr24E  DoAr_33  DoAr_44  GSS_26  GSS_39  HBC_266  IRS_37  IRS_39  IRS_41  IRS_51  VSSG_1  WSB_31  WSB_60  YLW_47  YLW_8'
+targets='AS_206  DoAr_16  DoAr_24E  DoAr_25  DoAr_33  DoAr_44  GSS_26  GSS_39  HBC_266  IRS_37  IRS_39  IRS_41  IRS_51  VSSG_1  WSB_31  WSB_60  YLW_47  YLW_8'
 tracks='track1'
 sidebands='lsb usb'
 rxs='rx240 rx345'
@@ -19,61 +19,120 @@ do
 		do
 			if [ $track = 'track1' ]
 			then
-				cellsize=0.25
-				imsize=256
+				cellsize=0.5
+				imsize=64
 			fi
 			if [ $track = 'track2' ]
 			then
-				cellsize=0.25
-				imsize=256
+				cellsize=0.5
+				imsize=64
 			fi
 
 			for target in $targets
 			do
-				datadir='../calibrated_Miriad/'$track'/'
+				datadir='../imaging/'$track'/'
  			        vis=$target'_'$track'.'$rx'.'$sideband'.cal.miriad'
           			cp -r $datadir$vis ./
 
-				uvaver vis=$vis options=nocal,nopass,nopol, line=channel,1024,1,4,4, out=$vis'.c'
-				uvflag vis=$vis edge=64,64,0 flagval="f"
+				#uvflag vis=$vis edge=64,64,0 flagval="f"
+				#uvaver vis=$vis options=nocal,nopass,nopol, line=channel,1,1,1024,1, out=$vis'.c'
 
 				# creating non-self-calibrated image
-          			rm -rf $target'.'$track'.'$rx'.'$sideband'.dirty'
-          			rm -rf $target'.'$track'.'$rx'.'$sideband'.beam'
-				invert vis=$vis \
-					options=systemp,double,mfs robust=2.0 \
-					map=$target'_'$track'.'$rx'.'$sideband'.dirty' \
-					beam=$target'_'$track'.'$rx'.'$sideband'.beam' cell=$cellsize imsize=$imsize
+                                rm -rf $vis'.dirty'
+                                rm -rf $vis'.beam'
+                                invert vis=$vis \
+					options=systemp,double,mfs robust=0.0 \
+					map=$vis'.dirty' \
+					beam=$vis'.beam' cell=$cellsize imsize=$imsize
 					select='uvrange(0,80)'
 
-         			rm -rf $target'.'$track'.'$rx'.'$sideband'.dirty.fits'
-          			rm -rf $target'.'$track'.'$rx'.'$sideband'.beam.fits'
-          			fits in=$target'.'$track'.'$rx'.'$sideband'.dirty' op=xyout out=$target'.'$track'.'$rx'.'$sideband'.dirty.fits'
-          			fits in=$target'.'$track'.'$rx'.'$sideband'.beam' op=xyout out=$target'.'$track'.'$rx'.'$sideband'.beam.fits'
+				rm -rf $vis'.dirty.fits'
+				rm -rf $vis'.beam.fits'
+				fits in=$vis'.dirty' op=xyout out=$vis'.dirty.fits'
+				fits in=$vis'.beam' op=xyout out=$vis'.beam.fits'
 
-          			rm -rf $target'.'$track'.'$rx'.'$sideband'.10.model'
-         			rm -rf $target'.'$track'.'$rx'.'$sideband'.10.model.fits'
-				clean map=$target'_'$track'.'$rx'.'$sideband'.dirty' \
-					beam=$target'_'$track'.'$rx'.'$sideband'.beam' \
-					out=$target'.'$track'.'$rx'.'$sideband'.10.model' cutoff=0.01 niters=10 \
+				rm -rf $vis'.10.model'
+				rm -rf $vis'.10.model.fits'
+				clean map=$vis'.dirty' \
+					beam=$vis'.beam'\
+					out=$vis'.10.model' cutoff=0.01 niters=10 \
 					options=positive
-				fits in=$target'.'$track'.'$rx'.'$sideband'.10.model' op=xyout out=$target'.'$track'.'$rx'.'$sideband'.10.model.fits'
+				fits in=$vis'.10.model' op=xyout out=$vis'.10.model.fits'
 
-				rm -rf $target'.'$track'.'$rx'.'$sideband'.clean'
-				rm -rf $target'.'$track'.'$rx'.'$sideband'.clean.fits'
-				restor map=$target'.'$track'.'$rx'.'$sideband'.dirty' \
-				        beam=$target'.'$track'.'$rx'.'$sideband'.beam' \
-				        model=$target'.'$track'.'$rx'.'$sideband'.10.model' \
-				        mode=clean out=$target'.'$track'.'$rx'.'$sideband'.clean'
-				fits in=$target'.'$track'.'$rx'.'$sideband'.clean' op=xyout out=$target'.'$track'.'$rx'.'$sideband'.clean.fits'
+				rm -rf $vis'.clean'
+				rm -rf $vis'.clean.fits'
+				restor map=$vis'.dirty' \
+					beam=$vis'.beam' \
+					model=$vis'.10.model' \
+					mode=clean out=$vis'.clean'
+				fits in=$vis'.clean' op=xyout out=$vis'.clean.fits'
 
-				rm -rf $target'.'$track'.'$rx'.'$sideband'.residual'
-			        rm -rf $target'.'$track'.'$rx'.'$sideband'.residual.fits'
-			        restor map=$target'.'$track'.'$rx'.'$sideband'.dirty' \
-			                beam=$target'.'$track'.'$rx'.'$sideband'.beam' \
-			                model=$target'.'$track'.'$rx'.'$sideband'.10.model' \
-			                mode=residual out=$target'.'$track'.'$rx'.'$sideband'.residual'
-			        fits in=$target'.'$track'.'$rx'.'$sideband'.residual' op=xyout out=$target'.'$track'.'$rx'.'$sideband'.residual.fits'
+				rm -rf $vis'.residual'
+				rm -rf $vis'.residual.fits'
+				restor map=$vis'.dirty' \
+                                        beam=$vis'.beam' \
+                                        model=$vis'.10.model' \
+                                        mode=residual out=$vis'.residual'
+				fits in=$vis'.residual' op=xyout out=$vis'.residual.fits'
+
+				output=$(python get_rms.sel.py  $rx  $sideband  $target  $track)
+				IFS='   ' read -r -a array <<< "$output"
+				rms=${array[0]}
+				cut=$(bc -l <<< "${array[0]}*1.5")
+				echo "The obtained rms for $target is ${array[0]} Jy/beam"
+
+				rm -rf $vis'.dirty'
+				rm -rf $vis'.beam'
+				invert vis=$vis \
+					options=systemp,double,mfs robust=0.0 \
+					map=$vis'.dirty' \
+					beam=$vis'.beam' cell=$cellsize imsize=$imsize
+
+				rm -rf $vis'.dirty.fits'
+                                rm -rf $vis'.beam.fits'
+                                fits in=$vis'.dirty' op=xyout out=$vis'.dirty.fits'
+                                fits in=$vis'.beam' op=xyout out=$vis'.beam.fits'
+
+				rm -rf $vis'.model'
+				rm -rf $vis'.model.fits'
+				clean map=$vis'.dirty' \
+					beam=$vis'.beam' \
+					out=$vis'.model' cutoff=$cut niters=1000
+				fits in=$vis'.model' op=xyout out=$vis'.model.fits'
+
+				rm -rf $vis'.clean'
+				rm -rf $vis'.clean.fits'
+				restor map=$vis'.dirty' \
+					beam=$vis'.beam' \
+					model=$vis'.model' \
+					mode=clean out=$vis'.clean'
+				fits in=$vis'.clean' op=xyout out=$vis'.clean.fits'
+
+				rm -rf $vis'.residual'
+				rm -rf $vis'.residual.fits'
+				restor map=$vis'.dirty' \
+					beam=$vis'.beam' \
+					model=$vis'.model' \
+					mode=residual out=$vis'.residual'
+				fits in=$vis'.residual' op=xyout out=$vis'.residual.fits'
+
+				rm -rf $vis'.clean.pbcor'
+				rm -rf $vis'.clean.pbcor.fits'
+				linmos in=$vis'.clean' out=$vis'.clean.pbcor'
+				fits in=$vis'.clean.pbcor' op=xyout out=$vis'.clean.pbcor.fits'
+
+
+
+				mv *.beam ./ch0/$track/
+                                mv *.model ./ch0/$track/
+                                mv *.clean ./ch0/$track/
+                                mv *.pbcor ./ch0/$track/
+                                mv *.dirty ./ch0/$track/
+                                mv *.residual ./ch0/$track/
+                                mv *.fits ./ch0/$track/
+                                rm -rf *.miriad
+				rm -rf *.c
+
 			done
 		done
 	done
